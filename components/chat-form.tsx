@@ -480,7 +480,7 @@ function AppHeader() {
               variant="outline"
               className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
             >
-              API Keys configured!
+              All API Keys configured
             </Badge>
           )}
         </div>

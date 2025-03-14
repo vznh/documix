@@ -14,7 +14,7 @@ import { Index } from "@upstash/vector";
 import { VectorStoreRetriever } from "@langchain/core/vectorstores";
 
 const ChatComponent = () => {
-  // 1. First useState hook - always called first
+  // Get configuration from store
   const { provider, openAiAPIKey, groqAPIKey, modelName } =
     configurationStore();
   const { embeddingModel, embeddingProvider } = configurationStore();
@@ -41,19 +41,26 @@ const ChatComponent = () => {
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <div className="grid h-screen grid-cols-[200px_1fr] gap-x-2 px-4 py-4">
-        <div className="flex flex-col">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-medium">Chats</h2>
-            <ModelConfiguration />
-          </div>
+    <div className="h-[calc(70vh)] flex flex-col">
+      <AssistantRuntimeProvider runtime={runtime}>
+        <div className="grid h-full grid-cols-[200px_1fr] gap-x-2 px-4 py-4 overflow-hidden">
+          <div className="flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-medium">Chats</h2>
+              <ModelConfiguration />
+            </div>
 
-          <ThreadList />
+            <div className="overflow-y-auto flex-grow">
+              <ThreadList />
+            </div>
+          </div>
+          
+          <div className="overflow-hidden flex flex-col">
+            <Thread />
+          </div>
         </div>
-        <Thread />
-      </div>
-    </AssistantRuntimeProvider>
+      </AssistantRuntimeProvider>
+    </div>
   );
 };
 
