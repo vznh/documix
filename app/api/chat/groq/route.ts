@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
         : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL_768 || "",
     token:
       embeddingProvider === "openai"
-        ? process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_1536 || ""
-        : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_768 || "",
+        ? process.env.UPSTASH_VECTOR_TOKEN_1536 || ""
+        : process.env.UPSTASH_VECTOR_TOKEN_768 || "",
   });
 
   const store = await UpstashVectorStore.fromExistingIndex(embeddings, {
@@ -61,10 +61,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  console.log("Messages:", messages ? messages.length : "undefined");
-  console.log("API Key present:", !!apiKey);
-  console.log("Model Name:", modelName || "undefined");
-  console.log("Retrieved docs count:", retrievedDocs.length);
   const groq = createGroq({ apiKey: apiKey });
   const model = groq(modelName || "llama-3.3-70b-versatile");
   // Prepare context from retrieved documents
@@ -84,7 +80,7 @@ export async function POST(req: NextRequest) {
     temperature: 0.7,
     system:
       retrievedDocs && retrievedDocs.length > 0
-        ? `You have access to the following retrieved context documents. When answering, cite sources using [Source: URL] format when referencing specific information.\n\n${contextText}`
+        ? `You have access to the following retrieved context documents. If the query has no apparent relevance to the retrieved context documents, answer normally. If it does have relevance, cite sources using [Source: URL] format when referencing specific information.\n\n${contextText}`
         : undefined,
   });
 

@@ -3,7 +3,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 
 export const redis = new Redis({
   url: process.env.NEXT_PUBLIC_REDIS_REST_URL,
-  token: process.env.NEXT_PUBLIC_REDIS_REST_TOKEN,
+  token: process.env.REDIS_REST_TOKEN,
 });
 
 export const limiter = new Ratelimit({

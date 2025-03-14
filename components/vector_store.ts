@@ -1,7 +1,7 @@
 import { CloseVectorWeb } from "@langchain/community/vectorstores/closevector/web";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { ContentItem } from "@/app/api/scrape/route";
+import { ContentItem } from "@/lib/types";
 
 export class VectorStore {
   embedding_choice: string;

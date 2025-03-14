@@ -17,13 +17,10 @@ import {
 } from "./ui/table";
 import { contentItemStore, configurationStore } from "@/lib/stores";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { Index } from "@upstash/vector";
+import { EmbeddedContentItem } from "@/lib/types";
 import { UpstashVectorStore } from "@langchain/community/vectorstores/upstash";
 import type { Document } from "@langchain/core/documents";
-import { OllamaEmbeddings } from "@langchain/ollama";
-import { OpenAIEmbeddings } from "@langchain/openai";
 import short from "short-uuid";
-import { embed } from "ai";
 import { toast } from "sonner";
 
 type EmbeddingInfoComponentProps = {
@@ -44,7 +41,8 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
     addEmbeddedItem,
     updateEmbeddedItems,
   } = contentItemStore();
-  const { embeddingModel, embeddingProvider } = configurationStore();
+  const { embeddingModel, embeddingProvider, openAiAPIKey } =
+    configurationStore();
   const [open, setOpen] = useState(false);
   const [vectorStore, setVectorStore] = useState<UpstashVectorStore | null>(
     null,
@@ -52,76 +50,76 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
   const [isModelReady, setIsModelReady] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const initializeVectorStore = async () => {
-      try {
-        setModelError(null);
+  // useEffect(() => {
+  //   const initializeVectorStore = async () => {
+  //     try {
+  //       setModelError(null);
 
-        const embeddings = await createEmbeddings(
-          embeddingModel,
-          embeddingProvider,
-        );
-        const index = new Index({
-          url:
-            embeddingProvider == "openai"
-              ? process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL_1536
-              : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL_768,
-          token:
-            embeddingProvider == "openai"
-              ? process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_1536
-              : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_768,
-        });
-        const store = new UpstashVectorStore(embeddings, { index });
+  //       const embeddings = await createEmbeddings(
+  //         embeddingModel,
+  //         embeddingProvider,
+  //       );
+  //       const index = new Index({
+  //         url:
+  //           embeddingProvider == "openai"
+  //             ? process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL_1536
+  //             : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL_768,
+  //         token:
+  //           embeddingProvider == "openai"
+  //             ? process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_1536
+  //             : process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN_768,
+  //       });
+  //       const store = new UpstashVectorStore(embeddings, { index });
 
-        setVectorStore(store);
-        setIsModelReady(true);
-      } catch (error) {
-        console.error("Failed to initialize vector store:", error);
-        setModelError(error instanceof Error ? error.message : String(error));
-        setIsModelReady(false);
-      }
-    };
+  //       setVectorStore(store);
+  //       setIsModelReady(true);
+  //     } catch (error) {
+  //       console.error("Failed to initialize vector store:", error);
+  //       setModelError(error instanceof Error ? error.message : String(error));
+  //       setIsModelReady(false);
+  //     }
+  //   };
 
-    initializeVectorStore();
-  }, [
-    embeddingModel,
-    embeddingProvider,
-    upstash_vector_url,
-    upstash_vector_token,
-  ]);
+  //   initializeVectorStore();
+  // }, [
+  //   embeddingModel,
+  //   embeddingProvider,
+  //   upstash_vector_url,
+  //   upstash_vector_token,
+  // ]);
 
-  const createEmbeddings = async (
-    embeddingModel: string,
-    embeddingProvider: string,
-  ) => {
-    if (embeddingProvider === "openai") {
-      return new OpenAIEmbeddings({
-        apiKey: configurationStore.getState().openAiAPIKey,
-        model: embeddingModel,
-      });
-    } else if (embeddingProvider === "ollama") {
-      // Create the embeddings instance
-      const ollamaEmbeddings = new OllamaEmbeddings({
-        model: embeddingModel,
-        baseUrl: "http://localhost:11434",
-      });
+  // const createEmbeddings = async (
+  //   embeddingModel: string,
+  //   embeddingProvider: string,
+  // ) => {
+  //   if (embeddingProvider === "openai") {
+  //     return new OpenAIEmbeddings({
+  //       apiKey: configurationStore.getState().openAiAPIKey,
+  //       model: embeddingModel,
+  //     });
+  //   } else if (embeddingProvider === "ollama") {
+  //     // Create the embeddings instance
+  //     const ollamaEmbeddings = new OllamaEmbeddings({
+  //       model: embeddingModel,
+  //       baseUrl: "http://localhost:11434",
+  //     });
 
-      // Test if the model is actually available
-      try {
-        // Try to embed a simple test string
-        const embeddings = await ollamaEmbeddings.embedQuery("Test connection");
-        return ollamaEmbeddings;
-      } catch (error) {
-        console.error("Ollama embedding model check failed:", error);
-        throw new Error(
-          `Ollama embedding model "${embeddingModel}" is not available. ` +
-            `Make sure Ollama is running and the model is installed with: ollama pull ${embeddingModel}`,
-        );
-      }
-    }
+  //     // Test if the model is actually available
+  //     try {
+  //       // Try to embed a simple test string
+  //       const embeddings = await ollamaEmbeddings.embedQuery("Test connection");
+  //       return ollamaEmbeddings;
+  //     } catch (error) {
+  //       console.error("Ollama embedding model check failed:", error);
+  //       throw new Error(
+  //         `Ollama embedding model "${embeddingModel}" is not available. ` +
+  //           `Make sure Ollama is running and the model is installed with: ollama pull ${embeddingModel}`,
+  //       );
+  //     }
+  //   }
 
-    throw new Error(`Embedding provider "${embeddingProvider}" not supported`);
-  };
+  //   throw new Error(`Embedding provider "${embeddingProvider}" not supported`);
+  // };
 
   const handleEmbedSingle = async (url: string) => {
     if (!url) {
@@ -159,7 +157,7 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
     }
 
     const contentItems = items.filter((element) => urls.includes(element.url));
-    const MAX_CONTENT_LENGTH = 4000; // Adjust based on your model's limitations
+    const MAX_CONTENT_LENGTH = 8000; // Adjust based on your model's limitations
 
     // Process each item individually to handle large content
     for (const contentItem of contentItems) {
@@ -226,9 +224,62 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
     toast("Documents embedded successfully! Feel free to chat");
   };
 
+  const embedDocuments = async (urls: string[]) => {
+    const contentItems = items.filter((element) => urls.includes(element.url));
+    const response = await fetch(
+      embeddingProvider == "openai"
+        ? `/api/embed/openai?model=${embeddingModel}`
+        : `/api/embed/ollama?model=${embeddingModel}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${embeddingProvider == "openai" ? openAiAPIKey : undefined}, `,
+        },
+        body: JSON.stringify({ contentItems }),
+      },
+    );
+    const data = response.json();
+    return data;
+  };
+
   const handleDelete = (url: string) => {
     updateItems(items.filter((item) => item.url !== url));
     updateEmbeddedItems(embeddedItems.filter((item) => item.url !== url));
+  };
+
+  const embedButtonHandler = async (urls: string[]) => {
+    try {
+      const toastId = toast.loading("Embedding documents...");
+      const data = await embedDocuments(urls);
+
+      if (data) {
+        const currentEmbeddedItems = [...embeddedItems];
+
+        // Create the updated array by marking embedded items
+        const updatedItems = currentEmbeddedItems.map((item) => {
+          // Find if this item was successfully embedded
+          const matchedItem = data.find(
+            (embeddedItem: EmbeddedContentItem) =>
+              embeddedItem.url === item.url,
+          );
+
+          // If found in the response and marked as embedded
+          if (matchedItem && matchedItem.embedded === true) {
+            return { ...item, embedded: true };
+          }
+          return item;
+        });
+
+        // Update the embedded items state
+        updateEmbeddedItems(updatedItems);
+        toast.dismiss(toastId);
+        toast.success("Documents embedded successfully");
+      }
+    } catch (error) {
+      console.error("Error embedding documents:", error);
+      toast.error("Failed to embed documents");
+    }
   };
 
   return (
@@ -240,24 +291,9 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Embedded Content Information</DialogTitle>
           <Button
-            onClick={async () => {
-              try {
-                // Get only the URLs of non-embedded items
-                const urlsToEmbed = embeddedItems
-                  .filter((item) => !item.embedded)
-                  .map((item) => item.url);
-
-                if (urlsToEmbed.length === 0) {
-                  toast("No new content to embed");
-                  return;
-                }
-
-                await handleEmbedMultiple(urlsToEmbed);
-              } catch (error: any) {
-                toast.error("Error embedding content: " + error.message);
-                console.error("Embedding error:", error);
-              }
-            }}
+            onClick={() =>
+              embedButtonHandler(embeddedItems.map((item) => item.url))
+            }
             size="sm"
             variant="default"
             className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -286,7 +322,15 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
                 {embeddedItems.map((item, index) => (
                   <TableRow key={index}>
                     <TableCell className="font-medium">
-                      {item.embedded ? <CheckCircle2 /> : <XCircle />}
+                      {item.embedded ? (
+                        <span className="inline-flex items-center justify-center rounded-full bg-green-500">
+                          <CheckCircle2 className="text-white" />
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center justify-center rounded-full bg-red-500">
+                          <XCircle className="text-white" />
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">{item.title}</TableCell>
                     <TableCell className="max-w-[30%] truncate">
@@ -302,13 +346,18 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
                     <TableCell>
                       <Button
                         disabled={item.embedded}
-                        onClick={() => handleEmbedSingle(item.url)}
+                        onClick={() => embedButtonHandler([item.url])}
                       >
                         Embed
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <Button onClick={(index) => handleDelete}>Delete</Button>
+                      <Button
+                        variant="destructive"
+                        onClick={(index) => handleDelete}
+                      >
+                        Delete
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

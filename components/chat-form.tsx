@@ -127,6 +127,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
       );
 
       if (!response.ok) {
+        console.log(await response.text());
         throw new Error(`Failed to load content: ${response.statusText}`);
       }
 
@@ -351,48 +352,6 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
               </TabsContent>
             </Tabs>
           </CardHeader>
-
-          {/* Chat Input Field */}
-          {activeTab === "chat" && displayContent && (
-            <CardFooter className="border-t p-4">
-              <form
-                onSubmit={handleSubmit}
-                className="relative flex items-center w-full rounded-lg border bg-background shadow-sm"
-              >
-                <AutoResizeTextarea
-                  onKeyDown={handleKeyDown}
-                  onChange={(v) => setInput(v)}
-                  value={input}
-                  placeholder={
-                    keysConfigured.openai
-                      ? "Ask about the documentation..."
-                      : "Configure your API key first to start chatting"
-                  }
-                  className="min-h-[50px] w-full resize-none bg-transparent px-4 py-3 pr-12 focus:outline-none"
-                  disabled={!keysConfigured.openai}
-                />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="absolute right-2 h-9 w-9 rounded-full"
-                      disabled={
-                        isLoading || !keysConfigured.openai || !input.trim()
-                      }
-                    >
-                      {isLoading ? (
-                        <div className="animate-spin">⋯</div>
-                      ) : (
-                        <ArrowUpIcon className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Send message</TooltipContent>
-                </Tooltip>
-              </form>
-            </CardFooter>
-          )}
         </Card>
       </div>
     </div>
