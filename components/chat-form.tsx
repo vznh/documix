@@ -9,6 +9,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AlertCircle, FileUp } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AutoResizeTextarea } from "@/components/autoresize-textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -19,15 +21,7 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
+
 import EmbeddingInfoComponent from "./embedding-info";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +30,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import ChatComponent from "./assistant-ui-chat";
 import { EmbeddedContentItem, ContentItem } from "@/lib/types";
 import { VectorStore } from "./vector_store";
-import { contentItemStore } from "@/lib/stores";
+import { contentItemStore, configurationStore } from "@/lib/stores";
 
 // Define message type for chat
 type Message = {
@@ -75,7 +69,81 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<string>("url");
+  const [activeTab, setActiveTab] = useState<string>("sources");
+  // File upload state
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileContent, setFileContent] = useState<string>("");
+  const [fileUploadError, setFileUploadError] = useState<string>("");
+  const [isFileUploading, setIsFileUploading] = useState(false);
+
+  // File upload handler
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileUploadError("");
+    const uploadedFiles = e.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+
+    setIsFileUploading(true);
+
+    try {
+      const file = uploadedFiles[0];
+      setFiles([...files, file]);
+
+      // Handle different file types
+      if (
+        file.type === "text/plain" ||
+        file.type === "text/markdown" ||
+        file.type === "application/pdf" ||
+        file.name.endsWith(".md") ||
+        file.name.endsWith(".txt")
+      ) {
+        const text = await readFileAsText(file);
+        setFileContent(text);
+
+        // Add to content items
+        const newItem: ContentItem = {
+          url: `local://${file.name}`,
+          title: file.name,
+          content: text,
+        };
+
+        addItem(newItem);
+        addEmbeddedItem({
+          embedded: false,
+          url: newItem.url,
+          title: newItem.title,
+        });
+
+        toast.success(`File "${file.name}" uploaded successfully`);
+      } else {
+        setFileUploadError(
+          "Unsupported file type. Please upload text, markdown, or PDF files.",
+        );
+        toast.error("Unsupported file type");
+      }
+    } catch (error) {
+      console.error(error);
+      setFileUploadError("Failed to process the file. Please try again.");
+      toast.error("File upload failed");
+    } finally {
+      setIsFileUploading(false);
+    }
+  };
+
+  // Helper function to read file as text
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          resolve(event.target.result as string);
+        } else {
+          reject(new Error("Failed to read file"));
+        }
+      };
+      reader.onerror = () => reject(new Error("File read error"));
+      reader.readAsText(file);
+    });
+  };
 
   // Load API keys from localStorage on component mount
   useEffect(() => {
@@ -151,7 +219,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
       }
 
       toast.success("Documentation loaded successfully!");
-      setActiveTab("chat"); // Switch to chat tab after loading docs
+      setActiveTab("sources"); // Keep on sources tab after loading docs
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to load content",
@@ -162,137 +230,21 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
     }
   };
 
-  // Handle sending a chat message
-  const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
-    if (!keysConfigured.openai) {
-      toast.error("Please configure your OpenAI API key first");
-      return;
-    }
-
-    // Add user message to chat
-    const userMessage: Message = { role: "user", content };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput(""); // Clear input
-    setIsLoading(true);
-
-    try {
-      // Get context from vector store if available
-      let context = "";
-      if (vectorStore) {
-        const results = await vectorStore.similaritySearch(content, 3);
-        context = results.map((r) => r.pageContent).join("\n\n");
-      }
-
-      // Send message to API
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          context,
-          apiKey: apiKeys.openai,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to get response");
-      }
-
-      const data = await response.json();
-
-      // Add assistant message to chat
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.content },
-      ]);
-    } catch (error) {
-      toast.error("Failed to get response");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    sendMessage(input);
-  };
-
-  // Handle keyboard shortcuts
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
-  };
-
   // Copy content to clipboard
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(displayContent);
+      const contentToCopy = displayContent || fileContent;
+      await navigator.clipboard.writeText(contentToCopy);
       toast.success("Copied to clipboard!");
     } catch (err) {
       toast.error("Failed to copy to clipboard");
     }
   };
 
-  // Save API keys
-  const saveApiKeys = () => {
-    const keys = { ...apiKeys };
-    const configured = { ...keysConfigured };
-
-    // Validate OpenAI key
-    if (keys.openai && !keys.openai.trim().startsWith("sk-")) {
-      toast.error("Please enter a valid OpenAI API key");
-      return;
-    }
-
-    // Save OpenAI key if provided
-    if (keys.openai) {
-      localStorage.setItem("openai_api_key", keys.openai);
-      configured.openai = true;
-    }
-
-    // Save Groq key if provided
-    if (keys.groq) {
-      localStorage.setItem("groq_api_key", keys.groq);
-      configured.groq = true;
-    }
-
-    setKeysConfigured(configured);
-    toast.success("API keys saved successfully!");
-  };
-
-  // Clear API keys
-  const clearApiKeys = () => {
-    localStorage.removeItem("openai_api_key");
-    localStorage.removeItem("groq_api_key");
-
-    setApiKeys({
-      openai: "",
-      groq: "",
-    });
-
-    setKeysConfigured({
-      openai: false,
-      groq: false,
-    });
-
-    toast.success("API keys removed");
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <AppHeader
-        isConfigured={keysConfigured.openai}
-        apiKeys={apiKeys}
-        setApiKeys={setApiKeys}
-        saveApiKeys={saveApiKeys}
-        clearApiKeys={clearApiKeys}
-      />
+      <AppHeader />
 
       {/* Main Content */}
       <div className="flex-1 container mx-auto max-w-5xl px-4 py-8">
@@ -306,15 +258,12 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
               <div className="flex justify-between items-center mb-4">
                 <CardTitle className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-3xl font-bold">
                   <div>
-                    {activeTab === "url"
-                      ? "Load Documentation"
-                      : activeTab === "chat"
-                        ? "Chat With Your Docs"
-                        : "AI Chat"}
+                    {activeTab === "sources"
+                      ? "Load Documentation & Files"
+                      : "Chat With Your Docs"}
                   </div>
                   {activeTab === "chat" && (
                     <EmbeddingInfoComponent
-                      className="text-base font-normal mt-2 md:mt-0"
                       upstash_vector_url={
                         process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL || ""
                       }
@@ -326,22 +275,168 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
                 </CardTitle>
 
                 <TabsList>
-                  <TabsTrigger value="url">URL</TabsTrigger>
+                  <TabsTrigger value="sources">Sources</TabsTrigger>
                   <TabsTrigger value="chat">AI Chat</TabsTrigger>
                 </TabsList>
               </div>
 
-              {/* URL Tab Content */}
-              <TabsContent value="url" className="space-y-4">
-                <UrlTabContent
-                  url={url}
-                  setUrl={setUrl}
-                  handleUrlSubmit={handleUrlSubmit}
-                  displayContent={displayContent}
-                  copyToClipboard={copyToClipboard}
-                  docsData={docsData}
-                  isProcessing={isProcessing}
-                />
+              {/* Sources Tab Content (URL + Files) */}
+              <TabsContent value="sources" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* URL Input Section */}
+                  <div className="bg-muted/50 p-6 rounded-lg">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <Link className="h-5 w-5" />
+                      Load Documentation From URL
+                    </h3>
+                    <form onSubmit={handleUrlSubmit} className="flex gap-2">
+                      <Input
+                        type="url"
+                        placeholder="https://docs.example.com"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="submit"
+                        className="gap-2"
+                        disabled={!url.trim() || isProcessing}
+                      >
+                        {isProcessing ? (
+                          <div className="animate-spin">⋯</div>
+                        ) : (
+                          <Link className="h-4 w-4" />
+                        )}
+                        {isProcessing ? "Loading..." : "Load"}
+                      </Button>
+                    </form>
+                  </div>
+
+                  {/* File Upload Section */}
+                  <div className="bg-muted/50 p-6 rounded-lg">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <FileUp className="h-5 w-5" />
+                      Upload Files for Embedding
+                    </h3>
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:bg-muted/70 transition-colors">
+                      <label
+                        htmlFor="file-upload"
+                        className="cursor-pointer block"
+                      >
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <FileUp className="h-6 w-6 text-muted-foreground" />
+                          <p className="font-medium">
+                            {isFileUploading
+                              ? "Uploading..."
+                              : "Drag files here or click to browse"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Supports .txt, .md, and .pdf files
+                          </p>
+                        </div>
+                        <Input
+                          id="file-upload"
+                          type="file"
+                          accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          disabled={isFileUploading}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {fileUploadError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{fileUploadError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Content Preview */}
+                {(displayContent || fileContent) && (
+                  <Card className="relative overflow-hidden border">
+                    <CardHeader className="py-3 px-4 bg-muted/70 border-b flex flex-row justify-between items-center">
+                      <h3 className="font-medium">Content Preview</h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="hover:bg-secondary"
+                        onClick={() => copyToClipboard()}
+                      >
+                        <Clipboard className="h-4 w-4 mr-2" />
+                        Copy
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="max-h-[300px] overflow-y-auto p-4 prose dark:prose-invert prose-sm max-w-none">
+                        {displayContent || fileContent}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sources List - Combined Documents and Files */}
+                {(docsData.length > 0 || files.length > 0) && (
+                  <Card>
+                    <CardHeader className="py-3 px-4">
+                      <h3 className="font-medium">
+                        Added Sources ({docsData.length + files.length})
+                      </h3>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-[200px] p-4">
+                        {/* Document URLs */}
+                        {docsData.map((doc, index) => (
+                          <div
+                            key={`doc-${index}`}
+                            className="text-sm py-1 border-b last:border-0 flex justify-between items-center"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Link className="h-4 w-4 text-muted-foreground" />
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline truncate max-w-[400px]"
+                              >
+                                {doc.title || doc.url}
+                              </a>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              URL
+                            </Badge>
+                          </div>
+                        ))}
+
+                        {/* Uploaded Files */}
+                        {files.map((file, index) => (
+                          <div
+                            key={`file-${index}`}
+                            className="text-sm py-1 border-b last:border-0 flex justify-between items-center"
+                          >
+                            <div className="flex items-center gap-2">
+                              <FileUp className="h-4 w-4 text-muted-foreground" />
+                              <span className="truncate max-w-[400px]">
+                                {file.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                File
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
 
               {/* Chat Tab Content */}
@@ -359,21 +454,18 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
 }
 
 // Header Component
-function AppHeader({
-  isConfigured,
-  apiKeys,
-  setApiKeys,
-  saveApiKeys,
-  clearApiKeys,
-}: {
-  isConfigured: boolean;
-  apiKeys: { openai: string; groq: string };
-  setApiKeys: React.Dispatch<
-    React.SetStateAction<{ openai: string; groq: string }>
-  >;
-  saveApiKeys: () => void;
-  clearApiKeys: () => void;
-}) {
+function AppHeader() {
+  const {
+    embeddingProvider,
+    embeddingModel,
+    openAiAPIKey,
+    groqAPIKey,
+    provider,
+  } = configurationStore();
+  const isConfigured =
+    ((embeddingProvider == "openai" || provider == "openai") &&
+      !!openAiAPIKey) ||
+    (provider == "groq" && !!groqAPIKey);
   return (
     <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
       <div className="container mx-auto max-w-5xl px-4 py-3 flex justify-between items-center">
@@ -388,7 +480,7 @@ function AppHeader({
               variant="outline"
               className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
             >
-              API Key Configured
+              API Keys configured!
             </Badge>
           )}
         </div>
