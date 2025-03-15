@@ -4,14 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, Clipboard, Link, Settings, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { AlertCircle, FileUp } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AutoResizeTextarea } from "@/components/autoresize-textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
@@ -180,11 +174,6 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
     e.preventDefault();
     if (!validateUrl(url)) {
       toast.error("Please enter a valid URL");
-      return;
-    }
-
-    if (!keysConfigured.openai) {
-      toast.error("Please configure your OpenAI API key first");
       return;
     }
 
