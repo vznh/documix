@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+
+import { useCallback } from "react";
 import { Button } from "./ui/button";
 import {
   Dialog,
@@ -49,7 +51,53 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
   );
   const [isModelReady, setIsModelReady] = useState(false);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [ollamaRunning, setOllamaRunning] = useState<boolean | null>(null);
 
+  const checkOllamaStatus = useCallback(async () => {
+    if (embeddingProvider !== "ollama") {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/embed/ollama/health", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        setOllamaRunning(true);
+      } else {
+        setOllamaRunning(false);
+        toast.error(
+          "Ollama service is not running. Please start the Ollama application.",
+          {
+            duration: 5000,
+            id: "ollama-check",
+          },
+        );
+      }
+    } catch (error) {
+      console.error("Failed to check Ollama status:", error);
+      setOllamaRunning(false);
+      toast.error(
+        "Failed to connect to Ollama service. Please make sure Ollama is installed and running.",
+        {
+          duration: 5000,
+          id: "ollama-check",
+        },
+      );
+    }
+  }, [embeddingProvider]);
+
+  useEffect(() => {
+    if (open && embeddingProvider === "ollama") {
+      checkOllamaStatus();
+    }
+  }, [open, embeddingProvider, checkOllamaStatus]);
+
+  // useEffect(() => {
   // useEffect(() => {
   //   const initializeVectorStore = async () => {
   //     try {
@@ -240,6 +288,9 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
       },
     );
     const data = response.json();
+    if (!response.ok) {
+      return null;
+    }
     return data;
   };
 
@@ -252,7 +303,9 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
     try {
       const toastId = toast.loading("Embedding documents...");
       const data = await embedDocuments(urls);
-
+      if (!data) {
+        throw new Error("Failed to embed documents");
+      }
       if (data) {
         const currentEmbeddedItems = [...embeddedItems];
 
@@ -297,14 +350,43 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
             size="sm"
             variant="default"
             className="bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled={embeddingProvider === "ollama" && ollamaRunning === false}
           >
             Embed All
           </Button>
         </DialogHeader>
 
+        {embeddingProvider === "ollama" && ollamaRunning === false && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <XCircle
+                  className="h-5 w-5 text-yellow-400"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  Ollama service is not running. Please start the Ollama
+                  application before embedding documents.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {embeddedItems.length === 0 ? (
-          <div className="flex justify-center py-4">
-            No content has been embedded yet.
+          <div>
+            <div className="flex justify-center py-4">
+              No content has been embedded yet.
+            </div>
+            <Button
+              variant="link"
+              className="p-0 mt-1 text-sm text-yellow-800"
+              onClick={checkOllamaStatus}
+            >
+              Check again
+            </Button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[calc(80vh-120px)]">
@@ -345,7 +427,11 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
                     </TableCell>
                     <TableCell>
                       <Button
-                        disabled={item.embedded}
+                        disabled={
+                          item.embedded ||
+                          (embeddingProvider === "ollama" &&
+                            ollamaRunning === false)
+                        }
                         onClick={() => embedButtonHandler([item.url])}
                       >
                         Embed
