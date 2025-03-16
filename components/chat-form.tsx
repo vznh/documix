@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, Clipboard, Link, Settings, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -233,7 +234,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <AppHeader />
+      <ApiConfigStatus />
 
       {/* Main Content */}
       <div className="flex-1 container mx-auto max-w-5xl px-4 py-8">
@@ -457,24 +458,58 @@ function AppHeader() {
     (provider == "groq" && !!groqAPIKey);
   return (
     <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
-      <div className="container mx-auto max-w-5xl px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Zap className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">Documix</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {isConfigured && (
-            <Badge
-              variant="outline"
-              className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
-            >
-              All API Keys configured
-            </Badge>
-          )}
-        </div>
-      </div>
+      <div className="container mx-auto max-w-5xl px-4 py-3 flex justify-between items-center"></div>
     </div>
+  );
+}
+export function ApiConfigStatus() {
+  const {
+    embeddingProvider,
+    embeddingModel,
+    openAiAPIKey,
+    groqAPIKey,
+    provider,
+  } = configurationStore();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  const isConfigured =
+    ((embeddingProvider === "openai" || provider === "openai") &&
+      !!openAiAPIKey) ||
+    (provider === "groq" && !!groqAPIKey);
+
+  // Only render the portal on the client side after component mount
+  if (!mounted) return null;
+
+  // Get the target element where we want to inject our badge
+  const targetElement = document.getElementById("api-config-status");
+  if (!targetElement) return null;
+
+  // Create the badge element using React portal
+  return createPortal(
+    <div>
+      {isConfigured ? (
+        <Badge
+          variant="outline"
+          className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
+        >
+          API Keys configured
+        </Badge>
+      ) : (
+        <Badge
+          variant="outline"
+          className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
+        >
+          API Keys not configured
+        </Badge>
+      )}
+    </div>,
+    targetElement,
   );
 }
 
