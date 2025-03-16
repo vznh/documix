@@ -10,7 +10,7 @@ Live demo: [documix.vercel.app](https://documix.vercel.app)
 
 - 🌐 **URL Scraping**: Load documentation directly from any website
 - 📁 **File Upload**: Support for PDF, Markdown, and text files
-- 🧠 **Semantic Search**: Powered by embeddings for accurate document retrieval
+- 🧠 **Semantic Search**: Powered by embeddings (OpenAI or local Ollama) for accurate document retrieval
 - 💬 **AI Chat Interface**: Chat with your documentation using state-of-the-art LLMs
 - 🚀 **Multiple LLM Options**: Support for OpenAI, Groq, and local models via Ollama
 - 🔄 **Persistence**: Save and restore your chat sessions
@@ -78,10 +78,12 @@ Documix requires API keys for operation. You can configure these in two ways:
 
 For the best performance and cost efficiency, we recommend:
 
-1. **Embeddings**: Local [Nomic Embed](https://github.com/nomic-ai/nomic) model via Ollama
-   ```bash
-   ollama pull nomic-embed-text
-   ```
+1. **Embeddings**: 
+   - When running locally: Local [Nomic Embed](https://github.com/nomic-ai/nomic) model via Ollama
+     ```bash
+     ollama pull nomic-embed-text
+     ```
+   - When using hosted version: OpenAI embeddings
 
 2. **Inference**: Groq API for fast responses (or OpenAI for highest quality)
 
@@ -89,12 +91,15 @@ For the best performance and cost efficiency, we recommend:
 
 ### Ollama Setup (for local embeddings)
 
+> **Important Note**: Ollama embeddings only work when running Documix locally on your machine. The hosted version at documix.vercel.app cannot connect to your local Ollama instance due to browser security restrictions. If you're using the hosted version, please use OpenAI embeddings instead.
+
 1. Install [Ollama](https://ollama.ai/) for your platform
 2. Pull the Nomic embedding model:
    ```bash
    ollama pull nomic-embed-text
    ```
 3. Ensure Ollama is running when using Documix
+4. Run Documix locally on your machine (not through the hosted version)
 
 ## Usage
 
