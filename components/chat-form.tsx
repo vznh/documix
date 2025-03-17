@@ -17,15 +17,12 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-
 import EmbeddingInfoComponent from "./embedding-info";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
 import ChatComponent from "./assistant-ui-chat";
-import { EmbeddedContentItem, ContentItem } from "@/lib/types";
-import { VectorStore } from "./vector_store";
+import { ContentItem } from "@/lib/types";
 import { contentItemStore, configurationStore } from "@/lib/stores";
 
 // Define message type for chat
@@ -69,13 +66,42 @@ export function ChatForm({ userId }: ChatFormProps) {
 
     try {
       const file = uploadedFiles[0];
+      if (file.size > 26214400) {
+        // more than 25 mb
+        setFileUploadError("File size exceeds limit");
+        setIsFileUploading(false);
+        return;
+      }
       setFiles([...files, file]);
 
       // Handle different file types
-      if (
+      if (file.type == "application/pdf" || file.name.endsWith(".pdf")) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch("/api/pdf", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to process PDF: ${response.statusText}`);
+        }
+        const result = await response.json();
+        setFileContent(result.text);
+        const newItem: ContentItem = {
+          url: `local://${file.name}`,
+          title: file.name,
+          content: result.text,
+        };
+        addItem(newItem);
+        addEmbeddedItem({
+          embedded: false,
+          url: `local://${file.name}`,
+          title: file.name,
+        });
+        toast.success(`File ${file.name} uploaded successfully`);
+      } else if (
         file.type === "text/plain" ||
         file.type === "text/markdown" ||
-        file.type === "application/pdf" ||
         file.name.endsWith(".md") ||
         file.name.endsWith(".txt")
       ) {
@@ -225,14 +251,7 @@ export function ChatForm({ userId }: ChatFormProps) {
                       : "Chat With Your Docs"}
                   </div>
                   {activeTab === "chat" && (
-                    <EmbeddingInfoComponent
-                      upstash_vector_url={
-                        process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL || ""
-                      }
-                      upstash_vector_token={
-                        process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN || ""
-                      }
-                    />
+                    <EmbeddingInfoComponent userId={userId} />
                   )}
                 </CardTitle>
 

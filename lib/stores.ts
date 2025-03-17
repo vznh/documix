@@ -1,7 +1,6 @@
 import { EmbeddedContentItem, ContentItem } from "./types";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { UpstashVectorStore } from "@langchain/community/vectorstores/upstash";
 
 interface ContentItemState {
   items: ContentItem[];

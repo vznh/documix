@@ -29,7 +29,7 @@ const ChatComponent = ({ userId }: ChatProps) => {
     api:
       provider == "openai"
         ? `/api/chat/openai?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}&userId=${userId}`
-        : `/api/chat/groq?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}`,
+        : `/api/chat/groq?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}&userId=${userId}`,
     headers: {
       Authorization: `Bearer ${provider == "openai" ? openAiAPIKey : groqAPIKey}`,
     },
