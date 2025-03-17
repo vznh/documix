@@ -14,7 +14,8 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
-import { Zap } from "lucide-react";
+import { Info, Zap } from "lucide-react";
+import { InfoDialog } from "@/components/info-dialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2">
                 <Zap className="h-6 w-6 text-primary" />
                 <h1 className="text-xl font-bold">Documix</h1>
+                <InfoDialog />
               </div>
               <div className="flex items-center gap-4">
                 <div id="api-config-status"></div>
