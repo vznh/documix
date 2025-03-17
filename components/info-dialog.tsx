@@ -56,7 +56,7 @@ export function InfoDialog() {
               <div className="flex items-center gap-2">
                 <Settings className="h-4 w-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Set up your API keys from OpenAI or Groq in the configuration
+                  Set up your API keys from Groq / OpenAI in the configuration
                   panel
                 </p>
               </div>
@@ -90,8 +90,9 @@ export function InfoDialog() {
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Your documents will be automatically processed and then you
-                  must embed them for AI retrieval (check the AI chat tab)
+                  Your documents will be automatically processed. In the AI Chat
+                  tab, click "View Embedded Content" and use the "Embed All"
+                  button to prepare them for AI retrieval
                 </p>
               </div>
             </div>
@@ -129,11 +130,25 @@ export function InfoDialog() {
                     </li>
                     <li>
                       Your API keys are stored locally in your browser and never
-                      saved
+                      sent to our servers
                     </li>
                     <li>
-                      Document embeddings are created using your configured AI
-                      provider
+                      <strong>Embeddings:</strong> OpenAI is recommended for
+                      production use, Ollama is for testing only
+                    </li>
+                    <li>
+                      <strong>Browser limitation:</strong> Ollama embeddings
+                      only work when running Documix locally, not with the
+                      hosted version
+                    </li>
+                    <li>
+                      <strong>Vector database:</strong> The shared database is
+                      cleared regularly. Information embedded more than a few
+                      days ago may no longer be available
+                    </li>
+                    <li>
+                      For persistent usage, consider setting up your own Upstash
+                      Vector instance
                     </li>
                   </ul>
                 </div>

@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-import { type Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ReactNode } from "react";
@@ -14,8 +12,9 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
-import { Info, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { InfoDialog } from "@/components/info-dialog";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +42,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             <header className="flex justify-between items-center p-4 h-16 border-b">
               <div className="flex items-center gap-2">
                 <Zap className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-bold">Documix</h1>
+                <Link href="/">
+                  <h1 className="text-xl font-bold underline">Documix</h1>
+                </Link>
                 <InfoDialog />
               </div>
               <div className="flex items-center gap-4">

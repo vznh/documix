@@ -75,10 +75,20 @@ Documix requires API keys for operation. You can configure these in two ways:
 2. **Environment Variables**: Set the keys in `.env.local` for default values.
 
 ### Recommended Setup
+### ⚠️ Important Note About Embeddings
+
+**Testing vs. Production Use:**
+- **Ollama**: Good for testing and development on your local machine
+- **OpenAI**: Recommended for production/consumer usage
+
+If you're using the hosted version at [documix.vercel.app](https://documix.vercel.app), you should use OpenAI embeddings, as the hosted version cannot connect to a local Ollama instance due to browser security restrictions.
+
+**Vector Database Maintenance:**
+Please note that our vector database and caches are cleared regularly. Information you embedded more than a few days ago may no longer be available. For persistent usage, consider setting up your own Upstash Vector instance.
 
 For the best performance and cost efficiency, we recommend:
 
-1. **Embeddings**: 
+1. **Embeddings**:
    - When running locally: Local [Nomic Embed](https://github.com/nomic-ai/nomic) model via Ollama
      ```bash
      ollama pull nomic-embed-text
@@ -139,6 +149,20 @@ You can choose between different language models for chat:
 2. **OpenAI**: GPT-4, GPT-3.5-turbo models
 3. **Ollama** (coming soon): Local models for fully offline operation
 
+## Deployment Notes
+
+### Vector Database Persistence
+
+When deploying your own instance of Documix:
+
+- The default configuration uses a shared vector database that is periodically cleared
+- Configure your local deployment with dedicated environment variables (as listed in .env.example for your vector instance
+
+### Embedding Model Considerations
+
+- **Cloud Deployment**: OpenAI embeddings are the most reliable option
+- **Local Deployment**: You can use Ollama for cost-free local embeddings
+- **Hybrid Approach**: Consider using OpenAI for initial embedding and local models for inference
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -153,7 +177,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - UI components from [shadcn/ui](https://ui.shadcn.com/)
 - Vector search by [Upstash Vector](https://upstash.com/vector)
 - Embedding models by [Nomic AI](https://nomic.ai/)
-- LLM providers: [OpenAI](https://openai.com/), [Groq](https://groq.com/), and [Ollama](https://ollama.ai/)
+- LLM providers: [Groq](https://groq.com/), [OpenAI](https://openai.com/), and [Ollama](https://ollama.ai/)
 
 ---
 

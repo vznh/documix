@@ -1,7 +1,9 @@
-import { ChatForm } from "@/components/chat-form";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import LandingPage from "@/components/landing";
 
-export default async function Page() {
-  const { userId } = await auth();
-  return <ChatForm userId={userId || undefined} />;
+export default function Home() {
+  return (
+    <main>
+      <LandingPage />
+    </main>
+  );
 }
