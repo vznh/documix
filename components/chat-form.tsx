@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { ArrowUpIcon, Clipboard, Link, Settings, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, FileUp } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CustomAlert } from "./custom-alert";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import {
   Card,
   CardContent,
@@ -15,15 +17,12 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-
 import EmbeddingInfoComponent from "./embedding-info";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "./ui/scroll-area";
 import ChatComponent from "./assistant-ui-chat";
-import { EmbeddedContentItem, ContentItem } from "@/lib/types";
-import { VectorStore } from "./vector_store";
+import { ContentItem } from "@/lib/types";
 import { contentItemStore, configurationStore } from "@/lib/stores";
 
 // Define message type for chat
@@ -32,7 +31,11 @@ type Message = {
   content: string;
 };
 
-export function ChatForm({ className }: React.ComponentProps<"form">) {
+interface ChatFormProps {
+  userId?: string;
+}
+
+export function ChatForm({ userId }: ChatFormProps) {
   const { items, addItem, removeItem, embeddedItems, addEmbeddedItem } =
     contentItemStore();
   // URL and documentation state
@@ -40,27 +43,6 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   const [docsData, setDocsData] = useState<ContentItem[]>([]);
   const [displayContent, setDisplayContent] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [embeddedDocuments, setEmbeddedDocuments] = useState<
-    EmbeddedContentItem[] | null
-  >(null);
-
-  // Chat state
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  // API keys state
-  const [apiKeys, setApiKeys] = useState({
-    openai: "",
-    groq: "",
-  });
-  const [keysConfigured, setKeysConfigured] = useState({
-    openai: false,
-    groq: false,
-  });
-
-  // Vector store for embeddings
-  const [vectorStore, setVectorStore] = useState<VectorStore | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<string>("sources");
@@ -72,6 +54,10 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
 
   // File upload handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!userId) {
+      toast.error("Please login before using Documix!");
+      return;
+    }
     setFileUploadError("");
     const uploadedFiles = e.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
@@ -80,13 +66,42 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
 
     try {
       const file = uploadedFiles[0];
+      if (file.size > 26214400) {
+        // more than 25 mb
+        setFileUploadError("File size exceeds limit");
+        setIsFileUploading(false);
+        return;
+      }
       setFiles([...files, file]);
 
       // Handle different file types
-      if (
+      if (file.type == "application/pdf" || file.name.endsWith(".pdf")) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch("/api/pdf", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to process PDF: ${response.statusText}`);
+        }
+        const result = await response.json();
+        setFileContent(result.text);
+        const newItem: ContentItem = {
+          url: `local://${file.name}`,
+          title: file.name,
+          content: result.text,
+        };
+        addItem(newItem);
+        addEmbeddedItem({
+          embedded: false,
+          url: `local://${file.name}`,
+          title: file.name,
+        });
+        toast.success(`File ${file.name} uploaded successfully`);
+      } else if (
         file.type === "text/plain" ||
         file.type === "text/markdown" ||
-        file.type === "application/pdf" ||
         file.name.endsWith(".md") ||
         file.name.endsWith(".txt")
       ) {
@@ -139,26 +154,6 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
     });
   };
 
-  // Load API keys from localStorage on component mount
-  useEffect(() => {
-    const loadApiKeys = () => {
-      const openaiKey = localStorage.getItem("openai_api_key");
-      const groqKey = localStorage.getItem("groq_api_key");
-
-      setApiKeys({
-        openai: openaiKey || "",
-        groq: groqKey || "",
-      });
-
-      setKeysConfigured({
-        openai: !!openaiKey,
-        groq: !!groqKey,
-      });
-    };
-
-    loadApiKeys();
-  }, []);
-
   // URL validation helper
   const validateUrl = useCallback((url: string) => {
     try {
@@ -172,6 +167,10 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   // Handle URL submission to load documentation
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) {
+      toast.error("Please login before using Documix!");
+      return;
+    }
     if (!validateUrl(url)) {
       toast.error("Please enter a valid URL");
       return;
@@ -233,7 +232,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
-      <AppHeader />
+      <ApiConfigStatus />
 
       {/* Main Content */}
       <div className="flex-1 container mx-auto max-w-5xl px-4 py-8">
@@ -252,20 +251,15 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
                       : "Chat With Your Docs"}
                   </div>
                   {activeTab === "chat" && (
-                    <EmbeddingInfoComponent
-                      upstash_vector_url={
-                        process.env.NEXT_PUBLIC_UPSTASH_VECTOR_URL || ""
-                      }
-                      upstash_vector_token={
-                        process.env.NEXT_PUBLIC_UPSTASH_VECTOR_TOKEN || ""
-                      }
-                    />
+                    <EmbeddingInfoComponent userId={userId} />
                   )}
                 </CardTitle>
 
                 <TabsList>
                   <TabsTrigger value="sources">Sources</TabsTrigger>
-                  <TabsTrigger value="chat">AI Chat</TabsTrigger>
+                  <TabsTrigger value="chat" disabled={!userId}>
+                    AI Chat
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -432,7 +426,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
 
               {/* New Chat Tab Content */}
               <TabsContent value="chat">
-                <ChatComponent />
+                <ChatComponent userId={userId} />
               </TabsContent>
             </Tabs>
           </CardHeader>
@@ -442,8 +436,7 @@ export function ChatForm({ className }: React.ComponentProps<"form">) {
   );
 }
 
-// Header Component
-function AppHeader() {
+export function ApiConfigStatus() {
   const {
     embeddingProvider,
     embeddingModel,
@@ -451,185 +444,45 @@ function AppHeader() {
     groqAPIKey,
     provider,
   } = configurationStore();
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   const isConfigured =
-    ((embeddingProvider == "openai" || provider == "openai") &&
+    ((embeddingProvider === "openai" || provider === "openai") &&
       !!openAiAPIKey) ||
-    (provider == "groq" && !!groqAPIKey);
-  return (
-    <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
-      <div className="container mx-auto max-w-5xl px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <Zap className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold">Documix</h1>
-        </div>
+    (provider === "groq" && !!groqAPIKey);
 
-        <div className="flex items-center gap-3">
-          {isConfigured && (
-            <Badge
-              variant="outline"
-              className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
-            >
-              All API Keys configured
-            </Badge>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+  // Only render the portal on the client side after component mount
+  if (!mounted) return null;
 
-// URL Tab Content Component
-function UrlTabContent({
-  url,
-  setUrl,
-  handleUrlSubmit,
-  displayContent,
-  copyToClipboard,
-  docsData,
-  isProcessing,
-}: {
-  url: string;
-  setUrl: (url: string) => void;
-  handleUrlSubmit: (e: React.FormEvent) => Promise<void>;
-  displayContent: string;
-  copyToClipboard: () => Promise<void>;
-  docsData: ContentItem[];
-  isProcessing: boolean;
-}) {
-  return (
-    <>
-      <div className="bg-muted/50 p-6 rounded-lg">
-        <h3 className="text-lg font-medium mb-3">
-          Load Documentation From URL
-        </h3>
-        <form onSubmit={handleUrlSubmit} className="flex gap-2">
-          <Input
-            type="url"
-            placeholder="https://docs.example.com"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            className="gap-2"
-            disabled={!url.trim() || isProcessing}
-          >
-            {isProcessing ? (
-              <div className="animate-spin">⋯</div>
-            ) : (
-              <Link className="h-4 w-4" />
-            )}
-            {isProcessing ? "Loading..." : "Load Docs"}
-          </Button>
-        </form>
-      </div>
+  // Get the target element where we want to inject our badge
+  const targetElement = document.getElementById("api-config-status");
+  if (!targetElement) return null;
 
-      {displayContent && (
-        <Card className="relative overflow-hidden border">
-          <CardHeader className="py-3 px-4 bg-muted/70 border-b flex flex-row justify-between items-center">
-            <h3 className="font-medium">Content Preview</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-secondary"
-              onClick={copyToClipboard}
-            >
-              <Clipboard className="h-4 w-4 mr-2" />
-              Copy
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="max-h-[300px] overflow-y-auto p-4 prose dark:prose-invert prose-sm max-w-none">
-              {displayContent}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {docsData.length > 0 && (
-        <Card>
-          <CardHeader className="py-3 px-4">
-            <h3 className="font-medium">
-              All Links Scraped ({docsData.length})
-            </h3>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ScrollArea className="h-[200px] p-4">
-              {docsData.map((doc, index) => (
-                <div
-                  key={index}
-                  className="text-sm py-1 border-b last:border-0"
-                >
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    {doc.url}
-                  </a>
-                </div>
-              ))}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
-    </>
-  );
-}
-
-// Chat Tab Content Component
-function ChatTabContent({
-  displayContent,
-  messages,
-}: {
-  displayContent: string;
-  messages: Message[];
-}) {
-  if (!displayContent) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
-        <Link className="h-12 w-12 mb-4 opacity-50" />
-        <h3 className="text-lg font-medium">No documentation loaded</h3>
-        <p className="max-w-md">
-          Start by loading documentation from a URL in the URL tab
-        </p>
-      </div>
-    );
-  }
-
-  if (messages.length === 0) {
-    return (
-      <div className="text-center p-8 text-muted-foreground">
-        <p className="mb-2 text-lg">Start chatting with your documentation</p>
-        <p className="text-sm">Ask questions about the loaded content</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4 px-1 py-3">
-      {messages.map((message, index) => (
-        <div
-          key={index}
-          className={cn(
-            "flex w-full",
-            message.role === "user" ? "justify-end" : "justify-start",
-          )}
+  // Create the badge element using React portal
+  return createPortal(
+    <div>
+      {isConfigured ? (
+        <Badge
+          variant="outline"
+          className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
         >
-          <div
-            className={cn(
-              "rounded-lg px-4 py-3 max-w-[85%] shadow-sm",
-              message.role === "user"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted border",
-            )}
-          >
-            {message.content}
-          </div>
-        </div>
-      ))}
-    </div>
+          API Keys configured
+        </Badge>
+      ) : (
+        <Badge
+          variant="outline"
+          className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800"
+        >
+          API Keys not configured
+        </Badge>
+      )}
+    </div>,
+    targetElement,
   );
 }

@@ -26,15 +26,11 @@ import short from "short-uuid";
 import { toast } from "sonner";
 
 type EmbeddingInfoComponentProps = {
-  embeddingId?: string;
-  upstash_vector_url: string;
-  upstash_vector_token: string;
+  userId?: string;
 };
 
 const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
-  embeddingId,
-  upstash_vector_url,
-  upstash_vector_token,
+  userId,
 }) => {
   const {
     items,
@@ -169,109 +165,6 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
   //   throw new Error(`Embedding provider "${embeddingProvider}" not supported`);
   // };
 
-  const handleEmbedSingle = async (url: string) => {
-    if (!url) {
-      return;
-    }
-    const contentItem = items.find((element) => element.url === url);
-    if (!contentItem) {
-      return;
-    }
-    const document: Document = {
-      pageContent: contentItem?.content,
-      metadata: {
-        url: contentItem?.url,
-        title: contentItem?.title,
-        id: short.generate(),
-        // adding a field for which user added this document might be useful
-      },
-    };
-    await vectorStore?.addDocuments([document], {
-      ids: [document.metadata.id],
-    });
-    let updatedEmbeddedItems = embeddedItems.map((item) => {
-      if (item.url == url) {
-        item.embedded = true;
-      }
-      return item;
-    });
-    updateEmbeddedItems(updatedEmbeddedItems);
-    toast("Document embedded successfuly! Feel free to chat");
-  };
-
-  const handleEmbedMultiple = async (urls: string[]) => {
-    if (urls.length === 0) {
-      return;
-    }
-
-    const contentItems = items.filter((element) => urls.includes(element.url));
-    const MAX_CONTENT_LENGTH = 8000; // Adjust based on your model's limitations
-
-    // Process each item individually to handle large content
-    for (const contentItem of contentItems) {
-      try {
-        // If content is too long, split it into chunks
-        if (contentItem.content.length > MAX_CONTENT_LENGTH) {
-          const chunks = [];
-          for (
-            let i = 0;
-            i < contentItem.content.length;
-            i += MAX_CONTENT_LENGTH
-          ) {
-            chunks.push(
-              contentItem.content.substring(i, i + MAX_CONTENT_LENGTH),
-            );
-          }
-
-          // Create a document for each chunk
-          for (let i = 0; i < chunks.length; i++) {
-            const document: Document = {
-              pageContent: chunks[i],
-              metadata: {
-                url: contentItem.url,
-                title: `${contentItem.title} (part ${i + 1}/${chunks.length})`,
-                id: short.generate(),
-                chunkIndex: i,
-                totalChunks: chunks.length,
-              },
-            };
-
-            await vectorStore?.addDocuments([document], {
-              ids: [document.metadata.id],
-            });
-          }
-        } else {
-          // Handle normal-sized content
-          const document: Document = {
-            pageContent: contentItem.content,
-            metadata: {
-              url: contentItem.url,
-              title: contentItem.title,
-              id: short.generate(),
-            },
-          };
-          await vectorStore?.addDocuments([document], {
-            ids: [document.metadata.id],
-          });
-        }
-
-        // Update embedded status
-        let updatedEmbeddedItems = embeddedItems.map((item) => {
-          if (item.url === contentItem.url) {
-            item.embedded = true;
-          }
-          return item;
-        });
-        updateEmbeddedItems(updatedEmbeddedItems);
-      } catch (error) {
-        console.error(`Error embedding ${contentItem.url}:`, error);
-        toast.error(`Failed to embed ${contentItem.title}`);
-      }
-    }
-
-    toast("Documents embedded successfully! Feel free to chat");
-  };
-
   const embedDocuments = async (urls: string[]) => {
     const contentItems = items.filter((element) => urls.includes(element.url));
     const response = await fetch(
@@ -284,7 +177,7 @@ const EmbeddingInfoComponent: React.FC<EmbeddingInfoComponentProps> = ({
           "Content-Type": "application/json",
           Authorization: `Bearer ${embeddingProvider == "openai" ? openAiAPIKey : undefined}, `,
         },
-        body: JSON.stringify({ contentItems }),
+        body: JSON.stringify({ contentItems, userId }),
       },
     );
     const data = response.json();

@@ -9,7 +9,7 @@ import { EmbeddedContentItem } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   const embeddingModel = req.nextUrl.searchParams.get("model");
-  const { contentItems } = await req.json();
+  const { contentItems, userId } = await req.json();
   const MAX_CONTENT_LENGTH = 2048; // Reduced from 8000 to prevent context length issues
 
   try {
@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
                 id: short.generate(),
                 chunkIndex: i,
                 totalChunks: chunks.length,
+                userId: userId,
               },
             };
 

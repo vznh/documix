@@ -16,15 +16,15 @@ export async function POST(req: NextRequest) {
   const modelName = url.searchParams.get("model") || "gpt-4o";
   const embeddingProvider = url.searchParams.get("embeddingProvider");
   const embeddingModel = url.searchParams.get("embeddingModel");
+  const userId = url.searchParams.get("userId");
   const apiKey = req.headers.get("Authorization")?.replace("Bearer ", "");
   const { messages, tools } = requestData;
 
   // Set up embeddings with timeout
-  const embeddings = new OllamaEmbeddings({ 
+  const embeddings = new OllamaEmbeddings({
     model: "nomic-embed-text",
-    timeout: 10000 // 10 second timeout
   });
-  
+
   // Configure vector store based on embedding provider
   const index = new Index({
     url:
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const store = await UpstashVectorStore.fromExistingIndex(embeddings, {
     index,
   });
-  const retriever = store.asRetriever({ filter: "", k: 3 });
+  const retriever = store.asRetriever({ filter: `userId = '${userId}'`, k: 3 });
 
   // Get the last message for retrieval
   const lastMessage = messages[messages.length - 1];
@@ -50,10 +50,14 @@ export async function POST(req: NextRequest) {
   let retrievedDocs: Document[] = [];
   if (lastMessage && lastMessage.content) {
     // Extract text content safely
-    const queryText = Array.isArray(lastMessage.content) 
-      ? lastMessage.content.map(item => typeof item === 'string' ? item : (item.text || '')).join(' ')
+    const queryText = Array.isArray(lastMessage.content)
+      ? lastMessage.content
+          .map((item: any) =>
+            typeof item === "string" ? item : item.text || "",
+          )
+          .join(" ")
       : lastMessage.content.toString();
-      
+
     try {
       retrievedDocs = await retriever.invoke(queryText);
       console.log("Retrieved docs:", retrievedDocs.length);
@@ -70,11 +74,14 @@ export async function POST(req: NextRequest) {
   console.log("Retrieved docs count:", retrievedDocs.length);
 
   // Prepare context from retrieved documents
-  let contextText = '';
+  let contextText = "";
   if (retrievedDocs && retrievedDocs.length > 0) {
     contextText = retrievedDocs
-      .map((doc, index) => `Document ${index + 1}:\n${doc.pageContent}\nSource: ${doc.metadata.source || 'Unknown'}\n`)
-      .join('\n');
+      .map(
+        (doc, index) =>
+          `Document ${index + 1}:\n${doc.pageContent}\nSource: ${doc.metadata.source || "Unknown"}\n`,
+      )
+      .join("\n");
   }
 
   // Set up OpenAI client
@@ -85,9 +92,10 @@ export async function POST(req: NextRequest) {
     model: openai(modelName),
     messages: convertToCoreMessages(messages),
     temperature: 0.7,
-    system: retrievedDocs && retrievedDocs.length > 0
-      ? `You have access to the following retrieved context documents. When answering, cite sources using [Source: URL] format when referencing specific information.\n\n${contextText}`
-      : undefined
+    system:
+      retrievedDocs && retrievedDocs.length > 0
+        ? `You have access to the following retrieved context documents. When answering, cite sources using [Source: URL] format when referencing specific information.\n\n${contextText}`
+        : undefined,
   });
 
   return result.toDataStreamResponse();

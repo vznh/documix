@@ -1,6 +1,9 @@
-import { ChatForm } from "@/components/chat-form"
+import LandingPage from "@/components/landing";
 
-export default function Page() {
-  return <ChatForm />
+export default function Home() {
+  return (
+    <main>
+      <LandingPage />
+    </main>
+  );
 }
-

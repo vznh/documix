@@ -2,25 +2,21 @@
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { useState, useCallback, useMemo, useEffect } from "react";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ModelConfiguration } from "@/components/configuration";
-import { UpstashVectorStore } from "@langchain/community/vectorstores/upstash";
-import { OllamaEmbeddings } from "@langchain/ollama";
-import { OpenAIEmbeddings } from "@langchain/openai";
 import { configurationStore } from "@/lib/stores";
-import { Index } from "@upstash/vector";
-import { VectorStoreRetriever } from "@langchain/core/vectorstores";
 
-const ChatComponent = () => {
+interface ChatProps {
+  userId?: string;
+}
+const ChatComponent = ({ userId }: ChatProps) => {
   // Get configuration from store
   const { provider, openAiAPIKey, groqAPIKey, modelName } =
     configurationStore();
   const { embeddingModel, embeddingProvider } = configurationStore();
 
   const getBodyData = (messages: any, tools: any) => {
-    console.log(modelName, provider == "openai" ? openAiAPIKey : groqAPIKey);
     return {
       messages,
       tools,
@@ -32,8 +28,8 @@ const ChatComponent = () => {
   const runtime = useChatRuntime({
     api:
       provider == "openai"
-        ? `/api/chat/openai?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}`
-        : `/api/chat/groq?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}`,
+        ? `/api/chat/openai?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}&userId=${userId}`
+        : `/api/chat/groq?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}&userId=${userId}`,
     headers: {
       Authorization: `Bearer ${provider == "openai" ? openAiAPIKey : groqAPIKey}`,
     },
@@ -54,7 +50,7 @@ const ChatComponent = () => {
               <ThreadList />
             </div>
           </div>
-          
+
           <div className="overflow-hidden flex flex-col">
             <Thread />
           </div>
