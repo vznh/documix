@@ -195,6 +195,7 @@ export function ChatForm({ userId }: ChatFormProps) {
       }
 
       setDocsData(docsData.concat(data.allTextContent) as ContentItem[]);
+      console.log(data.allTextContent);
       for (let item of data.allTextContent) {
         addItem(item);
         addEmbeddedItem({ embedded: false, url: item.url, title: item.title });
@@ -203,7 +204,15 @@ export function ChatForm({ userId }: ChatFormProps) {
 
       // Set display content to show the first content item
       if (data.allTextContent.length > 0) {
-        setDisplayContent(data.allTextContent[0].content);
+        // setDisplayContent(data.allTextContent[0].content);
+        let item = data.allTextContent[0];
+        const displayContent =
+          `${"=".repeat(15)}\n` +
+          `**Title:** ${item.title}\n` +
+          `**URL:** ${item.url}\n` +
+          `${"*".repeat(15)}\n\n` +
+          `${item.content}\n`;
+        setDisplayContent(displayContent);
       }
 
       toast.success("Documentation loaded successfully!");
@@ -221,11 +230,67 @@ export function ChatForm({ userId }: ChatFormProps) {
   // Copy content to clipboard
   const copyToClipboard = async () => {
     try {
-      const contentToCopy = displayContent || fileContent;
+      const contentToCopy = formatCopyContent();
+
       await navigator.clipboard.writeText(contentToCopy);
       toast.success("Copied to clipboard!");
     } catch (err) {
       toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  const formatCopyContent = () => {
+    let formattedContent = "";
+    for (let item of items) {
+      formattedContent +=
+        "==========================\n" +
+        `Title: ${item.title}\nURL: ${item.url}\n` +
+        "**************************\n" +
+        item.content +
+        "\n";
+    }
+    return formattedContent;
+  };
+  const downloadAsMarkdown = () => {
+    try {
+      // Create Markdown content with front matter
+      let markdownContent = `---\ntitle: Documentation Collection\nsources: ${items.length}\ndate: ${new Date().toISOString().split("T")[0]}\n---\n\n`;
+
+      // Add each content item with clear section formatting
+      for (let item of items) {
+        // Add source information in a header section
+        markdownContent += `# ${item.title}\n\n`;
+        markdownContent += `**Source:** [${item.url}](${item.url})\n\n`;
+
+        // Add horizontal rule before content
+        markdownContent += `## Content\n\n`;
+
+        // Add the actual content
+        markdownContent += `${item.content}\n\n`;
+
+        // Add separator between documents
+        markdownContent += `---\n\n`;
+      }
+
+      // Create a blob and download link
+      const blob = new Blob([markdownContent], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `documix-${new Date().toISOString().split("T")[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      toast.success("Markdown file downloaded successfully");
+    } catch (error) {
+      console.error("Error downloading Markdown:", error);
+      toast.error("Failed to download Markdown file");
     }
   };
 
@@ -343,15 +408,26 @@ export function ChatForm({ userId }: ChatFormProps) {
                   <Card className="relative overflow-hidden border">
                     <CardHeader className="py-3 px-4 bg-muted/70 border-b flex flex-row justify-between items-center">
                       <h3 className="font-medium">Content Preview</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="hover:bg-secondary"
-                        onClick={() => copyToClipboard()}
-                      >
-                        <Clipboard className="h-4 w-4 mr-2" />
-                        Copy
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-secondary"
+                          onClick={() => downloadAsMarkdown()}
+                        >
+                          <Clipboard className="h-4 w-4 mr-2" />
+                          Download
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-secondary"
+                          onClick={() => copyToClipboard()}
+                        >
+                          <Clipboard className="h-4 w-4 mr-2" />
+                          Copy
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="max-h-[300px] overflow-y-auto p-4 prose dark:prose-invert prose-sm max-w-none">

@@ -165,7 +165,7 @@ class DocumentationScraper {
 
     const urlsToVisit = new Set([startUrl]);
 
-    while (urlsToVisit.size > 0 && this.visitedUrls.size < this.maxDepth) {
+    while (urlsToVisit.size > 0 && this.visitedUrls.size < this.maxDepth + 1) {
       const currentUrl = Array.from(urlsToVisit)[0];
       urlsToVisit.delete(currentUrl);
 
@@ -198,7 +198,10 @@ class DocumentationScraper {
 }
 
 export async function GET(req: NextRequest) {
-  const ip = req.ip || "127.0.0.1";
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0] ||
+    req.headers.get("x-real-ip") ||
+    "127.0.0.1";
   const { success, limit, reset, remaining } = await limiter.limit(ip);
   if (!success) {
     return new Response(
