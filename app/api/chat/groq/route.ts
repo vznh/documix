@@ -5,6 +5,7 @@ import { Index } from "@upstash/vector";
 import type { Document } from "@langchain/core/documents";
 import { UpstashVectorStore } from "@langchain/community/vectorstores/upstash";
 import { OllamaEmbeddings } from "@langchain/ollama";
+import { NextResponse } from "next/server";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -13,15 +14,20 @@ export async function POST(req: NextRequest) {
   // Log the entire request body to see its structure
   const requestData = await req.json();
   const url = new URL(req.url);
+  const userId = url.searchParams.get("userId");
   const modelName = url.searchParams.get("model");
   const embeddingProvider = url.searchParams.get("embeddingProvider");
   const embeddingModel = url.searchParams.get("embeddingModel");
+  if (!userId) {
+    return NextResponse.json({ error: "No user id provided" }, { status: 500 });
+  }
+
   const apiKey = req.headers.get("Authorization")?.replace("Bearer ", "");
   // Based on your logs, it looks like messages are directly in the request body
   const { messages, tools } = requestData;
 
   const embeddings = new OllamaEmbeddings({
-    model: "nomic-embed-text",
+    model: embeddingModel || "nomic-embed-text",
   });
   const index = new Index({
     url:
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
   const store = await UpstashVectorStore.fromExistingIndex(embeddings, {
     index,
   });
-  const retriever = store.asRetriever({ filter: "", k: 3 });
+  const retriever = store.asRetriever({ filter: `userId = '${userId}'`, k: 3 });
 
   const lastMessage = messages[messages.length - 1];
 

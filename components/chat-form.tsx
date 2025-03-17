@@ -407,7 +407,7 @@ export function ChatForm({ userId }: ChatFormProps) {
 
               {/* New Chat Tab Content */}
               <TabsContent value="chat">
-                <ChatComponent />
+                <ChatComponent userId={userId} />
               </TabsContent>
             </Tabs>
           </CardHeader>

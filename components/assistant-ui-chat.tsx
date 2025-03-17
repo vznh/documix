@@ -7,11 +7,10 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { ModelConfiguration } from "@/components/configuration";
 import { configurationStore } from "@/lib/stores";
 
-interface ChatComponentProps {
+interface ChatProps {
   userId?: string;
 }
-
-const ChatComponent = ({ userId }: ChatComponentProps) => {
+const ChatComponent = ({ userId }: ChatProps) => {
   // Get configuration from store
   const { provider, openAiAPIKey, groqAPIKey, modelName } =
     configurationStore();
@@ -29,7 +28,7 @@ const ChatComponent = ({ userId }: ChatComponentProps) => {
   const runtime = useChatRuntime({
     api:
       provider == "openai"
-        ? `/api/chat/openai?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}`
+        ? `/api/chat/openai?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}&userId=${userId}`
         : `/api/chat/groq?model=${modelName}&embeddingProvider=${embeddingProvider}&embeddingModel=${embeddingModel}`,
     headers: {
       Authorization: `Bearer ${provider == "openai" ? openAiAPIKey : groqAPIKey}`,
