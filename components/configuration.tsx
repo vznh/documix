@@ -78,19 +78,15 @@ export function ModelConfiguration() {
   );
 
   const handleSave = useCallback(() => {
-    // Update the configuration store with local settings
+    // Update the configuration store with all local settings
     updateConfig({
       provider: localSettings.provider,
       modelName: localSettings.modelName,
-      ...// Update the appropriate API key based on provider
-      (localSettings.provider === "openai"
-        ? { openAiAPIKey: localSettings.openAiAPIKey }
-        : { groqAPIKey: localSettings.groqAPIKey }),
+      openAiAPIKey: localSettings.openAiAPIKey,
+      groqAPIKey: localSettings.groqAPIKey,
       embeddingModel: localSettings.embeddingModel,
       embeddingProvider: localSettings.embeddingProvider,
     });
-    setIsOpen(false);
-    console.log(provider, modelName, openAiAPIKey, groqAPIKey, updateConfig);
   }, [localSettings, updateConfig]);
 
   return (
