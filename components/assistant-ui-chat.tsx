@@ -33,7 +33,25 @@ const ChatComponent = ({ userId }: ChatProps) => {
     headers: {
       Authorization: `Bearer ${provider == "openai" ? openAiAPIKey : groqAPIKey}`,
     },
-    body: getBodyData,
+    body: (messages: any, tools: any) => {
+      // Format messages to ensure no empty content arrays
+      const formattedMessages = messages.map((msg) => {
+        if (Array.isArray(msg.content) && msg.content.length === 0) {
+          return {
+            ...msg,
+            content: [{ type: "text", text: " " }], // Add a space as minimal content
+          };
+        }
+        return msg;
+      });
+
+      return {
+        messages: formattedMessages,
+        tools,
+        modelName,
+        apiKey: provider === "openai" ? openAiAPIKey : groqAPIKey,
+      };
+    },
   });
 
   return (
