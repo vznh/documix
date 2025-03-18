@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { ArrowUpIcon, Clipboard, Link, Settings, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, FileUp } from "lucide-react";
-import { CustomAlert } from "./custom-alert";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
