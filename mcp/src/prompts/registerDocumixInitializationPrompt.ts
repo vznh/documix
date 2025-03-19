@@ -1,45 +1,45 @@
 // registerDocumixInitializationPrompt.ts
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-// prompts...
-// tools...
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
-export const createMcpServer = async () => {
-  const mcpServer = new McpServer({
-    name: "documix-mcp-server",
-    version: "1"
-  });
+export const registerDocumixInitializationPrompt = (mcpServer: McpServer) => {
+  mcpServer.prompt(
+    'do_function_here',
+    'Pack any webpage documentation repository for analysis',
+    {
+      docs: z.string().describe("The webpage URL (e.g. https://example.com/docs)"),
+      includePatterns: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of patterns to include in the analysis."),
+      ignorePatterns: z
+        .string()
+        .optional()
+        .describe("Comma-separated list of patterns to exclude from the analysis."),
+    },
+    async ({ docs, includePatterns, ignorePatterns }) => {
+      return {
+        messages: [
+          {
+            role: 'user',
+            content: {
+              type: 'text',
+              text: `Please analyze the documentation at ${docs}.
+First, use the do_function_here tool with these parameters:
 
-  // register prompts
-  //
-  // register tools
+Once you have the documentation analyzed:
+1. Give me a high-level overview of what this documentation covers.
+2. Explain the architecture and main components of the system/product described.
+3. Identify the key technologies and features documented.
+4. Highlight any interesting patterns, best practices, or design decisions mentioned.
+5. Summarize the main sections of the documentation and what information each provides.
+6. Note any gaps within the documentation that could be improved.
 
-  return mcpServer;
-}
-
-export const runMcpServer = async () => {
-  const server = await createMcpServer();
-  const transport = new StdioServerTransport();
-  const processExit = process.exit;
-
-  const handleExit = async () => {
-    try {
-      await server.close();
-      console.error("* Documix MCP server closure completed successfully!");
-      processExit(0);
-    } catch (error) {
-      console.error("* Error during MCP server closure: ", error);
-    }
-  }
-
-  process.on('SIGINT', handleExit);
-  process.on('SIGTERM', handleExit);
-
-  try {
-    await server.connect(transport);
-    //
-  } catch (error) {
-    console.error("* Failed to start MCP server. Error: ", error);
-    processExit(0);
-  }
+Please be thorough with your analysis.`
+            },
+          },
+        ],
+      };
+    },
+  );
 };
