@@ -9,9 +9,16 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - public files (e.g. robots.txt)
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    "/((?!_next/static|_next/image|favicon.ico|public).*)",
+
+    // Always protect all pages under the app directory
+    "/",
+    "/(.*)",
+
+    // Explicitly protect all API routes
+    "/api/(.*)",
+    "/trpc/(.*)",
   ],
 };
