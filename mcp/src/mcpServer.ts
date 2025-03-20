@@ -1,7 +1,8 @@
 // mcpServer.ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-// prompts...
+import { registerDocumixInitializationPrompt } from "./prompts/registerDocumixInitializationPrompt.js";
+import { registerPackDocumentationTool } from "./tools/packDocumentationTool.js";
 // tools...
 
 export const createMcpServer = async () => {
@@ -10,9 +11,10 @@ export const createMcpServer = async () => {
     version: "1"
   });
 
-  // register prompts
-  //
-  // register tools
+  registerDocumixInitializationPrompt(mcpServer);
+
+  registerPackDocumentationTool(mcpServer);
+  // .. and more?
 
   return mcpServer;
 }
