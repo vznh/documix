@@ -1,0 +1,20 @@
+{
+  "name": "mcp",
+  "module": "index.ts",
+  "type": "module",
+  "bin": {
+    "weather": "./build/src/index.js"
+  },
+  "scripts": {
+    "build": "rm -rf build/* && tsc && chmod 755 build/src/index.js"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "build"
+  ]
+}
