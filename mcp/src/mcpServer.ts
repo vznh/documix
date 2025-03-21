@@ -4,7 +4,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { registerDocumixInitializationPrompt } from "./prompts/registerDocumixInitializationPrompt.js";
 import { registerPackDocumentationTool } from "./tools/packDocumentationTool.js";
 import { registerReadDocumixOutputTool } from "./tools/readDocumixOutputTool.js";
-// tools...
 
 export const createMcpServer = async () => {
   const mcpServer = new McpServer({
@@ -16,7 +15,6 @@ export const createMcpServer = async () => {
 
   registerPackDocumentationTool(mcpServer);
   registerReadDocumixOutputTool(mcpServer);
-  // .. and more?
 
   return mcpServer;
 }
